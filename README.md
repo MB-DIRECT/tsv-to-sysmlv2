@@ -1,6 +1,6 @@
 # tsv-to-sysmlv2: deterministic SysML 1.7 to SysML v2 converter
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://doi.org/10.5281/zenodo.23587761)
 
 Converts a SysML 1.7 model exported from CATIA Magic / MSOSA 2026x into
 SysML v2 textual notation, and writes a migration report listing every
