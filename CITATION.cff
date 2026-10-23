@@ -4,7 +4,7 @@ type: software
 title: "tsv-to-sysmlv2: deterministic SysML 1.7 to SysML v2 converter"
 version: 1.0.0
 date-released: 2026-11-01
-doi: 10.5281/zenodo.XXXXXXX
+doi: 10.5281/zenodo.23587842
 repository-code: "https://github.com/MB-DIRECT/tsv-to-sysmlv2"
 license: MIT
 authors:
