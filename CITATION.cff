@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "tsv-to-sysmlv2: deterministic SysML 1.7 to SysML v2 converter"
+version: 1.0.0
+date-released: 2026-11-01
+doi: 10.5281/zenodo.XXXXXXX
+repository-code: "https://github.com/MB-DIRECT/tsv-to-sysmlv2"
+license: MIT
+authors:
+  - family-names: "Matthews"
+    given-names: "Evan"
+    orcid: "https://orcid.org/0009-0005-2265-0754"
+    affiliation: "The George Washington University"
+keywords:
+  - SysML
+  - SysML v2
+  - MBSE
+  - model migration
+  - CATIA Magic
+abstract: >-
+  Converts a SysML 1.7 model exported from CATIA Magic / MSOSA 2026x
+  (33-column TSV from the included Report Wizard) into SysML v2
+  textual notation, and writes a migration report of every element,
+  property and diagram that could not be migrated automatically.
+  Supporting software for the doctoral praxis "Metamodel Scope Using Model-Based Decision on Intended-Use & Requirements Engineering Categorization Tool (MB-DIRECT)".

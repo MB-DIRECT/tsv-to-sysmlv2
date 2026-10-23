@@ -1,0 +1,4 @@
+# Tested with Python 3.14.6 on Windows 11; the script needs Python 3.8 or newer.
+openpyxl==3.1.5
+# --validate additionally needs Jupyter and the SysML v2 Pilot Implementation
+# kernel ("sysml"); see https://github.com/Systems-Modeling/SysML-v2-Release

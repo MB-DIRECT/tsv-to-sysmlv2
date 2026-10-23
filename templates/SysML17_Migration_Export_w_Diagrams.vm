@@ -1,0 +1,517 @@
+## =============================================================================
+## SysML 1.7 → SysML 2.0 Migration Export Template  v6 (Diagram Edition)
+## Tool:   CATIA Magic / MSOSA 2026x — Report Wizard (plain text output, .tsv)
+## Output: Tab-Separated Values — 33 columns, one row per element
+##
+## v6.1 FIXES (2026-07-18) vs v6:
+##   FIX-D  Metaclass-guarded every property read. The engine logs
+##          "No such property: X of <metaclass>" WARNs whenever a template
+##          reads a feature the metaclass lacks (.type/.lowerValue on
+##          packages/blocks/relationships, .source/.target on Connectors,
+##          .name/.qualifiedName on ConnectorEnds, .direction on ports,
+##          .name on Comments/ProfileApplications at the model root,
+##          .tag on ElementTaggedValues). Output was unaffected (reads
+##          yielded empty) but the log was flooded; now reads only happen
+##          on metaclasses that own the feature.
+##
+## v6 FIXES (2026-07-17) vs v5:
+##   FIX-A  Removed every blank line / indented directive inside the ROW macro.
+##          v5 emitted ~27 blank output lines PER ELEMENT (≈38,600 blank lines
+##          for the HSUV model) plus stray space-only lines. Engine rule:
+##          blank template lines and leading indentation LEAK into output.
+##   FIX-B  Column 21 "Element ID" now carries the MagicDraw element ID
+##          ($el.getID()) for EVERY element — it matches the Element ID column
+##          of the CATIA migration report (MigrationReportOf<project>.xlsx),
+##          enabling exact-ID matching in compare_migration.py. (v5 tried to
+##          read the requirement Id tag here and always produced empty.)
+##   FIX-C  Central sanitation of ALL 33 columns: tabs → space, line breaks →
+##          the literal token <NL>. v5 left association-end names/QNs (cols
+##          32-33) and dependency client/supplier lists unsanitized, so names
+##          containing a real newline (e.g. 'WirelessTire\nPressureMonitor')
+##          split a row into two corrupt lines. Consumers: treat <NL> as a
+##          line break inside a name.
+##
+## HOW TO USE (no edits required):
+##   1. Tools → Report Wizard → select this .vm file
+##   2. Set scope to one of:
+##        - A Package  → exports that package and all its descendants
+##        - The Model  → exports all user packages (skips Cameo/SysML libs)
+##        - (none)     → same as Model scope — full model with lib skip
+##   3. Run and save output as .tsv
+##   Works for ANY SysML 1.7 project — no hardcoded package names.
+##
+## COLUMNS 1-21 (same as base template):
+##   1  Phase                         — migration phase 1-6
+##   2  SysML 1.7 Element Type        — canonical type label
+##   3  Name                          — element name
+##   4  Owner Qualified Name          — owner's fully qualified name
+##   5  Applied Stereotype            — Cameo humanType (stereotype-aware)
+##   6  Qualified Name                — element's fully qualified name
+##   7  Type Qualified Name           — type of property/port/pin
+##   8  Multiplicity                  — lower..upper
+##   9  Direction                     — in / out / inout (FlowProperty, Port, Param)
+##  10  Source/Client QN              — connector source, dep client, flow source
+##  11  Src End Part With Port QN     — Connector end-0 owning part
+##  12  Target/Supplier QN            — connector target, dep supplier, flow target
+##  13  Tgt End Part With Port QN     — Connector end-1 owning part
+##  14  Item Conveyed QN              — ItemFlow conveyed type
+##  15  Called Behavior QN            — CallBehaviorAction called behavior
+##  16  Source Node QN                — ControlFlow/ObjectFlow/Transition source node
+##  17  Target Node QN                — ControlFlow/ObjectFlow/Transition target node
+##  18  Trigger                       — Transition trigger name(s)
+##  19  Guard Expression              — Transition/edge guard
+##  20  Signal QN                     — SignalEvent signal or Trigger event
+##  21  Element ID                    — MagicDraw element ID ($el.getID()); matches
+##                                      the CATIA migration report / mdzip XMI IDs
+##
+## DIAGRAM-SUPPORT COLUMNS 22-33:
+##  22  Diagram Type                  — humanType for Diagram elements (BDD/IBD/STM/AD…)
+##  23  General / Parent QN           — Generalization: parent classifier QN (BDD)
+##  24  CE0 Role QN                   — Connector end-0 role property/port QN (IBD/Param)
+##  25  CE1 Role QN                   — Connector end-1 role property/port QN (IBD/Param)
+##  26  State Entry Behavior QN       — State entry behavior (STM)
+##  27  State Exit Behavior QN        — State exit behavior (STM)
+##  28  State Do Activity QN          — State do-activity (STM)
+##  29  Transition Effect QN          — Transition effect behavior (STM)
+##  30  Pseudostate Kind              — initial / choice / fork / join / etc. (STM)
+##  31  Partition Represents QN       — ActivityPartition represented element (AD swim lane)
+##  32  Association End 0             — role :: typeQN :: mult :: aggregation (BDD)
+##  33  Association End 1             — role :: typeQN :: mult :: aggregation (BDD)
+##
+## ── KNOWN GAPS (human-in-the-loop required after import) ──────────────────
+##  GAP-01  BindingConnector parameter-to-attribute mapping
+##          CE0/CE1 Role QN give endpoint property QNs but the exact
+##          bind <param> = <valueProperty> statement placement inside the
+##          owning part def must be verified manually in MSOSA 2026.
+##  GAP-02  Diagram visual layout and positioning
+##          No x/y coordinates are exported. MSOSA will auto-layout all
+##          regenerated diagrams. Human must manually reposition elements
+##          to match original diagram layouts.
+##  GAP-03  Activity diagram pin-to-port wiring
+##          InputPin / OutputPin types are captured but their connections
+##          to specific port flows on called behaviors are not resolvable
+##          from element data alone; wiring must be recreated manually.
+##  GAP-04  State machine history states and concurrent regions
+##          Pseudostate Kind captures shallow/deep history, fork, join,
+##          junction, choice, but concurrent (orthogonal) region ordering
+##          and history state targets must be verified manually.
+##  GAP-05  Requirement text body and Id tag
+##          Requirement text and the SysML Id tagged value are not exported;
+##          re-enter manually or import from the original source (Word,
+##          ReqIF, etc.). (Column 21 is the MagicDraw element ID, not the
+##          requirement Id tag.)
+##  GAP-06  Matrix / table configuration
+##          Dependency matrices and tables are MSOSA view configurations,
+##          not model elements. They must be recreated manually in MSOSA
+##          using the exported element lists and relationship rows.
+##  GAP-07  Swimlane ordering within an Activity
+##          ActivityPartition "represents" QN is captured (col 31) but
+##          the left-to-right ordering of swim lanes must be set manually.
+##  GAP-08  Diagram frame membership
+##          Which elements appear inside a given IBD or BDD frame is not
+##          exported. Auto-diagram in MSOSA uses element ownership to
+##          populate frames; custom membership must be added manually.
+##  GAP-09  Association navigability and ownership
+##          Col 32-33 export role/type/mult/aggregation for each end but
+##          the navigability arrows on BDD associations must be set
+##          manually in the MSOSA diagram editor.
+##  GAP-10  Connector association type linkage
+##          Plain Connectors linking parts on IBDs reference an Association
+##          type; this linkage is not captured and must be set manually.
+##  GAP-11  Transition effect body (OpaqueBehavior)
+##          Col 29 captures the effect behavior QN. If the effect is an
+##          inline OpaqueBehavior (anonymous), the body text is lost and
+##          must be re-entered manually.
+##  GAP-12  Visual styling, colors, fonts, custom icons
+##          All presentation properties are discarded. MSOSA default
+##          styles will apply; custom styling must be reapplied manually.
+##  GAP-13  Content / Context Diagram custom annotations
+##          Free-text notes, callouts, and legend entries on context
+##          diagrams (beyond LegendItem elements) are not captured.
+##  GAP-14  Tagged values beyond Direction
+##          Only the SysML direction tag is actively read. Custom tagged
+##          values (e.g. rationale, source, priority, requirement Id/text)
+##          must be exported separately or re-entered.
+## =============================================================================
+## ── METACLASSES TO SKIP (Cameo internals / noise) ───────────────────────────
+#set($SKIP_MC = ["Slot","InstanceSpecification","ElementImport","PackageImport",
+"TemplateSignature","TemplateBinding","TemplateParameterSubstitution",
+"OpaqueExpression","LiteralInteger","LiteralUnlimitedNatural","LiteralString",
+"LiteralBoolean","LiteralReal","LiteralNull","FunctionBehavior",
+"InteractionConstraint","Duration","TimeExpression","Interval","TimeConstraint",
+"ProfileApplication","BooleanTaggedValue","StringTaggedValue","IntegerTaggedValue",
+"RealTaggedValue","EnumerationTaggedValue","TaggedValue","ElementTaggedValue",
+"Stereotype","ExtensionEnd","Extension","Image","Comment"])
+## ── METACLASSES THAT OWN A GIVEN FEATURE (guards against engine WARNs) ──────
+## Only these metaclasses have .type:
+#set($TYPED_MC = ["Property","Port","Parameter","InputPin","OutputPin",
+"ActivityParameterNode","CentralBufferNode","DataStoreNode","ExtensionEnd"])
+## Only these metaclasses have .lowerValue/.upperValue (MultiplicityElement):
+#set($MULT_MC = ["Property","Port","Parameter","InputPin","OutputPin",
+"ConnectorEnd","ExtensionEnd"])
+## ── ROW MACRO ────────────────────────────────────────────────────────────────
+## Sets all 33 column variables then outputs ONE tab-separated line.
+## Primary type discriminator: $el.humanType ($ht) — Cameo stereotype-aware name.
+## NOTE: every line in this macro starts at column 0 and there are NO blank
+## lines — the Report Wizard engine leaks indentation and blank lines into
+## the output (once per element visited).
+#macro(ROW $el)
+#set($mc = $el.eClass().name)
+#set($ht = $el.humanType)
+## ── COL 1: Phase ─────────────────────────────────────────────────────────────
+#if($ht == "Model" || $ht == "Package" || $mc == "Model" || $mc == "Package")#set($PH="1"
+)#elseif($ht == "Signal" || $ht == "ValueType" || $ht == "Value Type" || $mc == "Signal" || $mc == "DataType")#set($PH="1"
+)#elseif($ht == "InterfaceBlock" || $ht == "Interface Block" || $ht == "ConstraintBlock" || $ht == "Constraint Block")#set($PH="1"
+)#elseif($mc == "Enumeration" || $mc == "EnumerationLiteral")#set($PH="1"
+)#elseif($ht == "Block" || $ht == "Requirement" || $ht == "UseCase" || $ht == "Use Case" || $ht == "Actor")#set($PH="2"
+)#elseif($ht == "TestCase" || $ht == "Test Case" || $ht == "Legend" || $mc == "Diagram")#set($PH="2"
+)#elseif($mc == "Class" || $mc == "UseCase" || $mc == "Actor")#set($PH="2"
+)#elseif($mc == "Generalization" || $mc == "Association")#set($PH="2"
+)#elseif($ht == "Part Property" || $ht == "PartProperty" || $ht == "Value Property" || $ht == "ValueProperty")#set($PH="3"
+)#elseif($ht == "Reference Property" || $ht == "ReferenceProperty" || $ht == "Flow Property" || $ht == "FlowProperty")#set($PH="3"
+)#elseif($ht == "Constraint Property" || $ht == "ConstraintProperty" || $ht == "Proxy Port" || $ht == "ProxyPort")#set($PH="3"
+)#elseif($ht == "Constraint Parameter" || $ht == "ConstraintParameter" || $mc == "Property" || $mc == "Port")#set($PH="3"
+)#elseif($ht == "Binding Connector" || $ht == "BindingConnector" || $ht == "Item Flow" || $ht == "ItemFlow")#set($PH="4"
+)#elseif($mc == "Connector" || $mc == "ConnectorEnd" || $mc == "InformationFlow")#set($PH="4"
+)#elseif($mc == "StateMachine" || $mc == "Activity" || $mc == "State" || $mc == "Region" || $mc == "Pseudostate")#set($PH="5"
+)#elseif($mc == "Transition" || $mc == "Trigger" || $mc == "SignalEvent" || $mc == "CallBehaviorAction" || $mc == "AcceptEventAction")#set($PH="5"
+)#elseif($mc == "ControlFlow" || $mc == "ObjectFlow" || $mc == "ActivityFinalNode" || $mc == "InitialNode" || $mc == "ActivityParameterNode")#set($PH="5"
+)#elseif($mc == "InputPin" || $mc == "OutputPin" || $mc == "Parameter" || $mc == "ActivityPartition")#set($PH="5"
+)#elseif($ht == "Satisfy" || $ht == "Verify" || $ht == "Allocate" || $ht == "DeriveReqt" || $ht == "Derive Reqt")#set($PH="6"
+)#elseif($mc == "Abstraction" || $mc == "Dependency" || $mc == "Constraint")#set($PH="6"
+)#else#set($PH="0")#end
+## ── COL 2: SysML 1.7 Element Type ────────────────────────────────────────────
+#if($ht == "Model" || $mc == "Model")#set($ET="Model"
+)#elseif($ht == "Package" || $mc == "Package")#set($ET="Package"
+)#elseif($ht == "Signal" || $mc == "Signal")#set($ET="Signal"
+)#elseif($ht == "UseCase" || $ht == "Use Case" || $mc == "UseCase")#set($ET="UseCase"
+)#elseif($ht == "Actor" || $mc == "Actor")#set($ET="Actor"
+)#elseif($mc == "Generalization")#set($ET="Generalization"
+)#elseif($ht == "Association" || $mc == "Association")#set($ET="Association"
+)#elseif($mc == "Enumeration")#set($ET="Enumeration"
+)#elseif($mc == "EnumerationLiteral")#set($ET="EnumerationLiteral"
+)#elseif($mc == "Diagram")#set($ET="Diagram"
+)#elseif($mc == "StateMachine")#set($ET="StateMachine"
+)#elseif($mc == "Activity")#set($ET="Activity"
+)#elseif($mc == "State")#set($ET="State"
+)#elseif($mc == "Region")#set($ET="Region"
+)#elseif($mc == "Pseudostate")#set($ET="Pseudostate"
+)#elseif($mc == "Transition")#set($ET="Transition"
+)#elseif($mc == "Trigger")#set($ET="Trigger"
+)#elseif($mc == "SignalEvent")#set($ET="SignalEvent"
+)#elseif($mc == "ControlFlow")#set($ET="ControlFlow"
+)#elseif($mc == "ObjectFlow")#set($ET="ObjectFlow"
+)#elseif($mc == "ActivityFinalNode")#set($ET="ActivityFinalNode"
+)#elseif($mc == "InitialNode")#set($ET="InitialNode"
+)#elseif($mc == "ActivityParameterNode")#set($ET="ActivityParameterNode"
+)#elseif($mc == "CallBehaviorAction")#set($ET="CallBehaviorAction"
+)#elseif($mc == "AcceptEventAction")#set($ET="AcceptEventAction"
+)#elseif($mc == "InputPin")#set($ET="InputPin"
+)#elseif($mc == "OutputPin")#set($ET="OutputPin"
+)#elseif($mc == "Parameter")#set($ET="Parameter"
+)#elseif($mc == "ConnectorEnd")#set($ET="ConnectorEnd"
+)#elseif($ht == "Block")#set($ET="Block [Class]"
+)#elseif($ht == "ConstraintBlock" || $ht == "Constraint Block")#set($ET="ConstraintBlock [Class]"
+)#elseif($ht == "InterfaceBlock" || $ht == "Interface Block")#set($ET="InterfaceBlock [Class]"
+)#elseif($ht == "Requirement")#set($ET="Requirement [Class]"
+)#elseif($ht == "TestCase" || $ht == "Test Case")#set($ET="TestCase [Behavior, Operation]"
+)#elseif($ht == "Legend")#set($ET="Legend [Class]"
+)#elseif($ht == "ValueType" || $ht == "Value Type")#set($ET="ValueType [DataType]"
+)#elseif($ht == "PartProperty" || $ht == "Part Property")#set($ET="PartProperty [Property]"
+)#elseif($ht == "ValueProperty" || $ht == "Value Property")#set($ET="ValueProperty [Property]"
+)#elseif($ht == "ReferenceProperty" || $ht == "Reference Property")#set($ET="ReferenceProperty [Property]"
+)#elseif($ht == "FlowProperty" || $ht == "Flow Property")#set($ET="FlowProperty [Property]"
+)#elseif($ht == "ConstraintProperty" || $ht == "Constraint Property")#set($ET="ConstraintProperty [Property]"
+)#elseif($ht == "ProxyPort" || $ht == "Proxy Port")#set($ET="ProxyPort [Port]"
+)#elseif($ht == "ConstraintParameter" || $ht == "Constraint Parameter")#set($ET="ConstraintParameter [Port]"
+)#elseif($ht == "BindingConnector" || $ht == "Binding Connector")#set($ET="BindingConnector [Connector]"
+)#elseif($ht == "ItemFlow" || $ht == "Item Flow" || $mc == "InformationFlow")#set($ET="ItemFlow [InformationFlow]"
+)#elseif($ht == "Allocate")#set($ET="Allocate [Abstraction]"
+)#elseif($ht == "Satisfy")#set($ET="Satisfy [Abstraction]"
+)#elseif($ht == "Verify")#set($ET="Verify [Abstraction]"
+)#elseif($ht == "DeriveReqt" || $ht == "Derive Reqt" || $ht == "Derive Requirement")#set($ET="DeriveReqt [Abstraction]"
+)#elseif($mc == "Abstraction")#set($ET="Abstraction"
+)#elseif($mc == "Dependency")#set($ET="Dependency"
+)#elseif($ht == "LegendItem" || $ht == "Legend Item")#set($ET="LegendItem [Constraint]"
+)#elseif($mc == "Constraint")#set($ET="Constraint"
+)#elseif($ht == "AllocateActivityPartition" || $ht == "Allocate Activity Partition")#set($ET="AllocateActivityPartition [ActivityPartition]"
+)#elseif($mc == "ActivityPartition")#set($ET="ActivityPartition"
+)#elseif($mc == "Class")#set($ET="Class"
+)#elseif($mc == "DataType")#set($ET="DataType"
+)#elseif($mc == "Property")#set($ET="Property"
+)#elseif($mc == "Port")#set($ET="Port"
+)#elseif($mc == "Connector")#set($ET="Connector"
+)#else#set($ET=$ht)#end
+## ── COL 3–6: Name, Owner QN, humanType (stereotype), Qualified Name ──────────
+## (raw values here; ALL columns are sanitized centrally just before output)
+## ConnectorEnd has neither name nor qualifiedName - reading them WARNs.
+#set($NM="")
+#set($QN="")
+#if($mc != "ConnectorEnd")
+#if($el.name)#set($NM=$el.name)#end
+#if($el.qualifiedName)#set($QN=$el.qualifiedName)#end
+#end
+#if($el.owner && $el.owner.qualifiedName)#set($OWN=$el.owner.qualifiedName)#else#set($OWN="")#end
+#set($ST=$ht)
+## ── COL 7: Type Qualified Name (only metaclasses that own .type) ─────────────
+#set($TQN="")
+#if($TYPED_MC.contains($mc) && $el.type && $el.type.qualifiedName)#set($TQN=$el.type.qualifiedName)#end
+## ── COL 8: Multiplicity (only MultiplicityElement metaclasses) ───────────────
+#set($MULT="")
+#if($MULT_MC.contains($mc) && $el.lowerValue && $el.upperValue)#set($MULT="$el.lowerValue.value..$el.upperValue.value")#end
+## ── COL 9: Direction (FlowProperty, ProxyPort, ConstraintParameter, Parameter)
+## Only Parameter has a .direction feature; ports/properties carry it as a
+## SysML tagged value. ElementTaggedValue lacks .tag - skip it in the loop.
+#set($DIR="")
+#if($mc == "Parameter" && $el.direction)#set($DIR=$el.direction.name)#end
+#if($DIR == "" && ($ht == "FlowProperty" || $ht == "Flow Property" || $ht == "ProxyPort" || $ht == "Proxy Port" || $ht == "ConstraintParameter" || $ht == "Constraint Parameter"))
+#foreach($tv in $el.taggedValue)
+#if($tv.eClass().name != "ElementTaggedValue")
+#if($tv.tag.name == "direction" || $tv.tag.name == "flowDirection" || $tv.tag.name == "Direction")
+#if($DIR == "" && $tv.value)#set($DIR=$tv.value.name)#end
+#end
+#end
+#end
+#end
+## ── COL 10: Source / Client QN ───────────────────────────────────────────────
+## (Connector/BindingConnector have NO source/target - endpoints are exported
+##  via cols 11/13 and 24/25 instead)
+#set($SRC="")
+#if($mc == "ControlFlow" || $mc == "ObjectFlow" || $mc == "Transition")
+#if($el.source && $el.source.qualifiedName)#set($SRC=$el.source.qualifiedName)#end
+#elseif($mc == "Abstraction" || $mc == "Dependency" || $mc == "Generalization")
+#foreach($c in $el.client)#if($SRC!="")#set($SRC="$SRC, ")#end#set($SRC="$SRC$c.qualifiedName")#end
+#elseif($mc == "InformationFlow")
+#foreach($s in $el.informationSource)#if($SRC!="")#set($SRC="$SRC, ")#end#set($SRC="$SRC$s.qualifiedName")#end
+#end
+## ── COL 11: Src End Part With Port QN (Connector end-0 owning part) ──────────
+#set($SPWP="")
+#if($mc == "Connector" && $el.end && $el.end.size() > 0)
+#set($e0=$el.end.get(0))
+#if($e0.partWithPort && $e0.partWithPort.qualifiedName)#set($SPWP=$e0.partWithPort.qualifiedName)#end
+#elseif($mc == "ConnectorEnd" && $el.partWithPort && $el.partWithPort.qualifiedName)
+#set($SPWP=$el.partWithPort.qualifiedName)
+#end
+## ── COL 12: Target / Supplier QN ─────────────────────────────────────────────
+#set($TGT="")
+#if($mc == "ControlFlow" || $mc == "ObjectFlow" || $mc == "Transition")
+#if($el.target && $el.target.qualifiedName)#set($TGT=$el.target.qualifiedName)#end
+#elseif($mc == "Abstraction" || $mc == "Dependency")
+#foreach($s in $el.supplier)#if($TGT!="")#set($TGT="$TGT, ")#end#set($TGT="$TGT$s.qualifiedName")#end
+#elseif($mc == "InformationFlow")
+#foreach($t in $el.informationTarget)#if($TGT!="")#set($TGT="$TGT, ")#end#set($TGT="$TGT$t.qualifiedName")#end
+#end
+## ── COL 13: Tgt End Part With Port QN (Connector end-1 owning part) ──────────
+#set($TPWP="")
+#if($mc == "Connector" && $el.end && $el.end.size() > 1)
+#set($e1=$el.end.get(1))
+#if($e1.partWithPort && $e1.partWithPort.qualifiedName)#set($TPWP=$e1.partWithPort.qualifiedName)#end
+#end
+## ── COL 14: Item Conveyed QN ─────────────────────────────────────────────────
+#set($CONV="")
+#if($mc == "InformationFlow")
+#foreach($c in $el.conveyed)#if($CONV!="")#set($CONV="$CONV, ")#end#set($CONV="$CONV$c.qualifiedName")#end
+#end
+## ── COL 15: Called Behavior QN ───────────────────────────────────────────────
+#set($CBH="")
+#if($mc == "CallBehaviorAction" && $el.behavior && $el.behavior.qualifiedName)
+#set($CBH=$el.behavior.qualifiedName)
+#end
+## ── COL 16–17: Source Node / Target Node QN (activity edges, transitions) ────
+#set($SND="")
+#set($TND="")
+#if($mc == "ControlFlow" || $mc == "ObjectFlow" || $mc == "Transition")
+#if($el.source && $el.source.qualifiedName)#set($SND=$el.source.qualifiedName)#end
+#if($el.target && $el.target.qualifiedName)#set($TND=$el.target.qualifiedName)#end
+#end
+## ── COL 18: Trigger ──────────────────────────────────────────────────────────
+#set($TRG="")
+#if($mc == "Transition")
+#foreach($t in $el.trigger)#if($TRG!="")#set($TRG="$TRG | ")#end#set($TRG="$TRG$t.name")#end
+#end
+## ── COL 19: Guard Expression ─────────────────────────────────────────────────
+#set($GRD="")
+#if(($mc == "Transition" || $mc == "ControlFlow" || $mc == "ObjectFlow") && $el.guard)
+#if($el.guard.specification && $el.guard.specification.value)
+#set($GRD=$el.guard.specification.value.toString())
+#elseif($el.guard.name)
+#set($GRD=$el.guard.name)
+#end
+#end
+## ── COL 20: Signal QN ────────────────────────────────────────────────────────
+#set($SIG="")
+#if($mc == "SignalEvent" && $el.signal && $el.signal.qualifiedName)
+#set($SIG=$el.signal.qualifiedName)
+#elseif($mc == "Trigger" && $el.event && $el.event.qualifiedName)
+#set($SIG=$el.event.qualifiedName)
+#end
+## ── COL 21: Element ID — MagicDraw element ID (all elements) ─────────────────
+## Matches the 'Element ID' column of MigrationReportOf<project>.xlsx and the
+## xmi:id values in the .mdzip, enabling exact matching in compare_migration.py.
+#set($EID="")
+#set($EID="$!el.getID()")
+## ── COL 22: Diagram Type ─────────────────────────────────────────────────────
+#set($DT="")
+#if($mc == "Diagram")#set($DT=$ht)#end
+## ── COL 23: General / Parent QN (BDD — Generalization parent classifier) ─────
+#set($GEN="")
+#if($mc == "Generalization" && $el.general && $el.general.qualifiedName)
+#set($GEN=$el.general.qualifiedName)
+#end
+## ── COL 24–25: Connector End Role QNs (IBD / Parametric Diagram) ─────────────
+#set($CE0R="")
+#set($CE1R="")
+#if($mc == "Connector" && $el.end)
+#if($el.end.size() > 0)
+#set($e0=$el.end.get(0))
+#if($e0.role && $e0.role.qualifiedName)#set($CE0R=$e0.role.qualifiedName)#end
+#end
+#if($el.end.size() > 1)
+#set($e1=$el.end.get(1))
+#if($e1.role && $e1.role.qualifiedName)#set($CE1R=$e1.role.qualifiedName)#end
+#end
+#elseif($mc == "ConnectorEnd" && $el.role && $el.role.qualifiedName)
+#set($CE0R=$el.role.qualifiedName)
+#end
+## ── COL 26–28: State Entry / Exit / Do Activity Behaviors (STM) ──────────────
+#set($ENTRY="")
+#set($EXIT="")
+#set($DOA="")
+#if($mc == "State")
+#if($el.entry && $el.entry.qualifiedName)#set($ENTRY=$el.entry.qualifiedName)#end
+#if($el.exit && $el.exit.qualifiedName)#set($EXIT=$el.exit.qualifiedName)#end
+#if($el.doActivity && $el.doActivity.qualifiedName)#set($DOA=$el.doActivity.qualifiedName)#end
+#end
+## ── COL 29: Transition Effect Behavior QN (STM) ──────────────────────────────
+#set($EFF="")
+#if($mc == "Transition" && $el.effect && $el.effect.qualifiedName)
+#set($EFF=$el.effect.qualifiedName)
+#end
+## ── COL 30: Pseudostate Kind (STM) ───────────────────────────────────────────
+#set($PSK="")
+#if($mc == "Pseudostate" && $el.kind)#set($PSK=$el.kind.name)#end
+## ── COL 31: ActivityPartition Represents QN (AD swim lane) ───────────────────
+#set($PRE="")
+#if($mc == "ActivityPartition" && $el.represents && $el.represents.qualifiedName)
+#set($PRE=$el.represents.qualifiedName)
+#end
+## ── COL 32–33: Association Ends (BDD) ────────────────────────────────────────
+## Format per end: role :: typeQN :: multiplicity :: aggregation
+#set($AE0="")
+#set($AE1="")
+#if($mc == "Association" && $el.memberEnd)
+#set($mes=$el.memberEnd)
+#if($mes.size() > 0)
+#set($me0=$mes.get(0))
+#set($me0n="")
+#if($me0.name)#set($me0n=$me0.name)#end
+#set($me0t="")
+#if($me0.type && $me0.type.qualifiedName)#set($me0t=$me0.type.qualifiedName)#end
+#set($me0m="")
+#if($me0.lowerValue && $me0.upperValue)#set($me0m="$me0.lowerValue.value..$me0.upperValue.value")#end
+#set($me0a="")
+#if($me0.aggregation)#set($me0a=$me0.aggregation.name)#end
+#set($AE0="$me0n :: $me0t :: $me0m :: $me0a")
+#end
+#if($mes.size() > 1)
+#set($me1=$mes.get(1))
+#set($me1n="")
+#if($me1.name)#set($me1n=$me1.name)#end
+#set($me1t="")
+#if($me1.type && $me1.type.qualifiedName)#set($me1t=$me1.type.qualifiedName)#end
+#set($me1m="")
+#if($me1.lowerValue && $me1.upperValue)#set($me1m="$me1.lowerValue.value..$me1.upperValue.value")#end
+#set($me1a="")
+#if($me1.aggregation)#set($me1a=$me1.aggregation.name)#end
+#set($AE1="$me1n :: $me1t :: $me1m :: $me1a")
+#end
+#end
+## ── SANITIZE ALL COLUMNS: tab → space, any line break → literal <NL> ─────────
+## (names/QNs can contain real newlines, e.g. 'WirelessTire\nPressureMonitor';
+##  unsanitized they split a TSV row into corrupt fragments)
+#set($ET=$ET.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($NM=$NM.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($OWN=$OWN.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($ST=$ST.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($QN=$QN.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($TQN=$TQN.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($MULT=$MULT.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($DIR=$DIR.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($SRC=$SRC.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($SPWP=$SPWP.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($TGT=$TGT.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($TPWP=$TPWP.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($CONV=$CONV.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($CBH=$CBH.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($SND=$SND.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($TND=$TND.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($TRG=$TRG.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($GRD=$GRD.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($SIG=$SIG.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($EID=$EID.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($DT=$DT.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($GEN=$GEN.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($CE0R=$CE0R.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($CE1R=$CE1R.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($ENTRY=$ENTRY.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($EXIT=$EXIT.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($DOA=$DOA.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($EFF=$EFF.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($PSK=$PSK.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($PRE=$PRE.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($AE0=$AE0.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+#set($AE1=$AE1.toString().replaceAll("\t"," ").replaceAll("\r\n|\r|\n","<NL>"))
+## ── OUTPUT: one line = one element (newline comes from THIS template line) ────
+$PH	$ET	$NM	$OWN	$ST	$QN	$TQN	$MULT	$DIR	$SRC	$SPWP	$TGT	$TPWP	$CONV	$CBH	$SND	$TND	$TRG	$GRD	$SIG	$EID	$DT	$GEN	$CE0R	$CE1R	$ENTRY	$EXIT	$DOA	$EFF	$PSK	$PRE	$AE0	$AE1
+#end
+## ── RECURSIVE TRAVERSAL ──────────────────────────────────────────────────────
+#macro(TRAVERSE $el)
+#set($mc = $el.eClass().name)
+#if(!$SKIP_MC.contains($mc))
+#ROW($el)
+#foreach($child in $el.ownedElement)
+#TRAVERSE($child)
+#end
+#end
+#end
+## ── HEADER ROW ───────────────────────────────────────────────────────────────
+Phase	SysML 1.7 Element Type	Name	Owner Qualified Name	Applied Stereotype	Qualified Name	Type Qualified Name	Multiplicity	Direction	Source/Client Qualified Name	Src End Part With Port QN	Target/Supplier Qualified Name	Tgt End Part With Port QN	Item Conveyed Qualified Name	Called Behavior Qualified Name	Source Node Qualified Name	Target Node Qualified Name	Trigger	Guard Expression	Signal Qualified Name	Element ID	Diagram Type	General/Parent QN	CE0 Role QN	CE1 Role QN	State Entry Behavior QN	State Exit Behavior QN	State Do Activity QN	Transition Effect QN	Pseudostate Kind	Partition Represents QN	Association End 0	Association End 1
+## ── KNOWN CAMEO / SysML LIBRARY PACKAGE NAMES TO SKIP ───────────────────────
+#set($LIB = ["SysML","QUDV","Unit Imports","UML Standard Profile",
+"PrimitiveValueTypes","MD Customization for SysML","MD Customization for Requirements",
+"MD Customization for ViewsViewpoints",
+"ISO-80000","ISO-80000-Extension",
+"USCustomaryUnits","SIUnits","MetricUnits","CGSUnits","BinaryMeasures",
+"RequirementsProfile","Cameo Concept Modeler Profile","Simulation Stereotypes",
+"MagicGrid","EssentialADL","StandardProfileL2","StandardProfileL3",
+"DataHub Profile","Derived Properties"])
+## ── ENTRY POINT ──────────────────────────────────────────────────────────────
+##   $element = Package  → traverse that package directly
+##   $element = Model    → traverse its children, skipping library packages
+##   $element = null     → fall back to $project.model, skipping library packages
+## (guard: the model root also owns ProfileApplications/Comments etc. that
+##  have no .name feature - reading it WARNs; SKIP_MC filters them first)
+#if($element)
+#set($elMC = $element.eClass().name)
+#if($elMC == "Model")
+#foreach($pkg in $element.ownedElement)
+#set($pmc = $pkg.eClass().name)
+#if(!$SKIP_MC.contains($pmc))
+#if(!$LIB.contains($pkg.name))
+#TRAVERSE($pkg)
+#end
+#end
+#end
+#else
+#TRAVERSE($element)
+#end
+#else
+#foreach($pkg in $project.model.ownedElement)
+#set($pmc = $pkg.eClass().name)
+#if(!$SKIP_MC.contains($pmc))
+#if(!$LIB.contains($pkg.name))
+#TRAVERSE($pkg)
+#end
+#end
+#end
+#end

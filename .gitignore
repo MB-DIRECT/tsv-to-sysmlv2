@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# Microsoft Office lock files
+~$*.xlsx
+~$*.docx
+~$*.pptx
+
+# OS metadata
+Thumbs.db
+desktop.ini
+.DS_Store
+*.lnk
+*.log
+
+# Private working notes, never uploaded
+RELEASE_CHECKLIST.md
+
+# Smoke-test outputs (the expected_* files are tracked; fresh runs are not)
+examples/Homegrown_pilot.sysml
+examples/Homegrown_pilot_MigrationReport.xlsx
+examples/Homegrown_Export_*.sysml
+examples/Homegrown_Export_*.xlsx
